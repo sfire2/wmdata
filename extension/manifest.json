@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WikiMasters — Cotes",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "Affiche les cotes et l’historique des enchères WikiMasters sur Firefox pour ordinateur.",
   "host_permissions": ["https://cyrxjeppjqsxxjayfrur.supabase.co/*"],
   "background": {
