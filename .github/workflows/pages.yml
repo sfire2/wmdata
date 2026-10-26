@@ -26,8 +26,6 @@ jobs:
           node-version: 22
       - name: Generate public catalogue config
         run: node scripts/fetch-wm-key.mjs
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
       - name: Prepare site
         run: |
           mkdir _site
