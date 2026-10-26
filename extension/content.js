@@ -102,20 +102,8 @@
   }
 
   async function searchCards(query) {
-    const normalized = query.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+    const normalized = query.trim().toLocaleLowerCase("fr-FR");
     if (searchCache.has(normalized)) return searchCache.get(normalized);
-
-    // A complete shorter result set can be narrowed locally as the user types.
-    const reusable = [...searchCache.entries()]
-      .filter(([cachedQuery]) => normalized.startsWith(cachedQuery))
-      .filter(([, cards]) => cards.length < 12)
-      .sort(([a], [b]) => b.length - a.length)[0];
-    if (reusable) {
-      const cards = reusable[1].filter((card) => card.wikipedia_title.toLocaleLowerCase("fr-FR").includes(normalized));
-      searchCache.set(normalized, cards);
-      return cards;
-    }
-
     const key = await getAnonKey();
     if (!key) return [];
     const cards = await new Promise((resolve) => {
@@ -124,13 +112,6 @@
     searchCache.set(normalized, cards);
     if (searchCache.size > 40) searchCache.delete(searchCache.keys().next().value);
     return cards;
-  }
-
-  function hasReusableSearch(query) {
-    const normalized = query.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
-    return searchCache.has(normalized) || [...searchCache].some(([cachedQuery, cards]) =>
-      cards.length < 12 && normalized.startsWith(cachedQuery) && normalized.length > cachedQuery.length,
-    );
   }
 
   function calculate(sales, rarity) {
@@ -710,7 +691,6 @@
       clearTimeout(searchTimer);
       const sequence = ++searchSequence;
       const query = search.value.trim();
-      const normalizedQuery = query.replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
       results.replaceChildren();
       workspace.hidden = true;
       selectedCard = null;
@@ -722,7 +702,7 @@
       searchHelp.textContent = "Recherche en cours…";
       searchTimer = setTimeout(async () => {
         try {
-          const cards = await searchCards(normalizedQuery);
+          const cards = await searchCards(query.toLocaleLowerCase("fr-FR"));
           if (sequence !== searchSequence || search.value.trim() !== query) return;
           results.replaceChildren();
           if (!cards.length) {
@@ -730,43 +710,32 @@
             results.classList.add("is-empty");
           } else {
             results.classList.remove("is-empty");
-            cards
-              .sort((a, b) => {
-                const rank = (card) => {
-                  const title = card.wikipedia_title.toLocaleLowerCase("fr-FR");
-                  if (title === normalizedQuery) return 0;
-                  if (title.startsWith(normalizedQuery)) return 1;
-                  if (title.includes(` ${normalizedQuery}`)) return 2;
-                  return 3;
-                };
-                return rank(a) - rank(b) || a.wikipedia_title.localeCompare(b.wikipedia_title, "fr");
-              })
-              .forEach((card) => {
-                const rarity = rarities.has(card.rarity) ? card.rarity : "C";
-                const button = document.createElement("button");
-                button.type = "button";
-                button.className = "wm-cotes-app-result";
-                button.style.setProperty("--rarity", rarityColors[rarity]);
-                button.setAttribute("role", "option");
-                const symbol = document.createElement("span");
-                symbol.className = "wm-cotes-app-result-symbol";
-                symbol.textContent = "✳";
-                const title = document.createElement("span");
-                title.className = "wm-cotes-app-result-title";
-                title.textContent = card.wikipedia_title;
-                const badge = document.createElement("span");
-                badge.className = "wm-cotes-app-result-rarity";
-                badge.textContent = rarity;
-                button.append(symbol, title, badge);
-                button.addEventListener("click", () => chooseCard({ ...card, rarity }));
-                results.append(button);
-              });
+            cards.forEach((card) => {
+              const rarity = rarities.has(card.rarity) ? card.rarity : "C";
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "wm-cotes-app-result";
+              button.style.setProperty("--rarity", rarityColors[rarity]);
+              button.setAttribute("role", "option");
+              const symbol = document.createElement("span");
+              symbol.className = "wm-cotes-app-result-symbol";
+              symbol.textContent = "✳";
+              const title = document.createElement("span");
+              title.className = "wm-cotes-app-result-title";
+              title.textContent = card.wikipedia_title;
+              const badge = document.createElement("span");
+              badge.className = "wm-cotes-app-result-rarity";
+              badge.textContent = rarity;
+              button.append(symbol, title, badge);
+              button.addEventListener("click", () => chooseCard({ ...card, rarity }));
+              results.append(button);
+            });
           }
           searchHelp.textContent = `${cards.length} résultat${cards.length > 1 ? "s" : ""}`;
         } catch (error) {
           if (sequence === searchSequence) searchHelp.textContent = error.message || "La recherche a échoué.";
         }
-      }, hasReusableSearch(normalizedQuery) ? 0 : 220);
+      }, 160);
     });
     return panel;
   }
