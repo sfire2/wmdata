@@ -23,4 +23,4 @@ Le workflow récupère la clé publique du catalogue depuis les scripts publique
 
 Les pages et données appartiennent à WikiMasters. L'application est communautaire et non officielle. Les routes publiques peuvent évoluer ou refuser les requêtes depuis GitHub Pages ; dans ce cas, l'interface signale l'erreur retournée par le catalogue.
 
-Les anciens fichiers de l'extension Chrome restent dans `legacy-extension/`. Le lanceur Electron précédent (`main.cjs` et `preload.cjs`) n'est plus utilisé par le site statique.
+Les anciens fichiers de l'extension Chrome restent dans `legacy-extension/`. Le lanceur Electron précédent est archivé dans `legacy-desktop/` et n'est plus utilisé par le site statique.
