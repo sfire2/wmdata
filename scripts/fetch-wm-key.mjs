@@ -6,7 +6,7 @@ const keyPattern = /eyJ[\w-]{10,}\.eyJ[\w-]{20,}\.[\w-]{10,}/;
 const home = await fetch(site);
 if (!home.ok) throw new Error(`WikiMasters a répondu HTTP ${home.status}.`);
 const html = await home.text();
-const scripts = [...html.matchAll(/<script[^>]+src=["']([^"']*\/_next\/static\/[^"']+\.js)["']/g)]
+const scripts = [...html.matchAll(/<script[^>]+src=["']([^"']*\/_next\/static\/[^"']+\.js(?:\?[^"']*)?)["']/g)]
   .map((match) => new URL(match[1], site).href);
 
 let anonKey;
