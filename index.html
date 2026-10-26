@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WikiMasters · Cotes</title>
-  <link rel="stylesheet" href="app.css?v=2">
+  <link rel="stylesheet" href="app.css?v=3">
 </head>
 <body>
   <main class="shell">
@@ -67,13 +67,17 @@
         <input id="loginPassword" type="password" autocomplete="current-password" required>
         <button id="togglePassword" type="button" aria-controls="loginPassword" aria-pressed="false">Afficher</button>
       </div>
+      <div class="captcha-area">
+        <div id="turnstileWidget"></div>
+        <div class="captcha-message" id="captchaMessage" aria-live="polite" hidden></div>
+      </div>
       <div class="login-message" id="loginMessage" aria-live="polite" hidden></div>
       <button class="text-button login-submit" id="submitLogin" type="submit">Se connecter</button>
       <a class="login-site-link" href="https://www.wiki-masters.com/login" target="_blank" rel="noreferrer">Créer un compte ou réinitialiser le mot de passe sur WikiMasters</a>
       <small>Vos identifiants sont envoyés directement au service d’authentification WikiMasters. L’application ne les enregistre pas.</small>
     </form>
   </dialog>
-  <script src="wm-config.js?v=1"></script>
-  <script src="app.js?v=3"></script>
+  <script src="wm-config.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

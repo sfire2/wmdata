@@ -22,6 +22,8 @@
   const submitLogin = $("#submitLogin");
   const loginPassword = $("#loginPassword");
   const togglePassword = $("#togglePassword");
+  const turnstileWidget = $("#turnstileWidget");
+  const captchaMessage = $("#captchaMessage");
   const cache = new Map();
   let selectedCard = null;
   let searchTimer;
@@ -29,6 +31,9 @@
   let dataSequence = 0;
   let authSession = null;
   let restoreSessionPromise;
+  let captchaToken = "";
+  let captchaWidgetId = null;
+  let captchaScriptRequested = false;
 
   const price = (value) => `${Math.round(value).toLocaleString("fr-FR")} WB`;
 
@@ -74,13 +79,15 @@
     updateConnection();
   }
 
-  async function requestAuthToken(grant, body) {
+  async function requestAuthToken(grant, body, verificationToken) {
     const key = window.WM_CONFIG?.anonKey;
     if (!key) throw new Error("Configuration du catalogue introuvable. Rechargez la page plus tard.");
     const response = await fetch(`${AUTH}/token?grant_type=${grant}`, {
       method: "POST",
       headers: { apikey: key, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(grant === "password" && verificationToken
+        ? { ...body, gotrue_meta_security: { captcha_token: verificationToken } }
+        : body),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -93,7 +100,7 @@
       } else if (code === "email_not_confirmed" || normalizedMessage.includes("email not confirmed")) {
         userMessage = "Cette adresse courriel n’est pas encore confirmée. Vérifie le message de confirmation de WikiMasters.";
       } else if (code === "captcha_failed" || normalizedMessage.includes("captcha")) {
-        userMessage = "La vérification anti-robot de WikiMasters a échoué. Réessaie depuis leur page de connexion.";
+        userMessage = "WikiMasters a refusé la vérification anti-robot. Recommence le défi et réessaie.";
       } else if (code === "invalid_credentials" || normalizedMessage.includes("invalid login credentials")) {
         userMessage = "WikiMasters n’a pas accepté cette adresse courriel et ce mot de passe.";
       } else if (serviceMessage) {
@@ -152,7 +159,68 @@
     }
   }
 
-  loginButton.addEventListener("click", () => loginDialog.showModal());
+  function setCaptchaMessage(text, isError = false) {
+    captchaMessage.textContent = text;
+    captchaMessage.hidden = !text;
+    captchaMessage.classList.toggle("is-error", isError);
+  }
+
+  function renderTurnstile() {
+    if (captchaWidgetId !== null || !window.turnstile) return;
+    const sitekey = window.WM_CONFIG?.turnstileSiteKey;
+    if (!sitekey) {
+      setCaptchaMessage("La configuration de vérification WikiMasters est introuvable.", true);
+      return;
+    }
+    try {
+      captchaWidgetId = window.turnstile.render(turnstileWidget, {
+        sitekey,
+        theme: "auto",
+        appearance: "interaction-only",
+        callback: (token) => {
+          captchaToken = token;
+          setCaptchaMessage("");
+        },
+        "expired-callback": () => {
+          captchaToken = "";
+          setCaptchaMessage("La vérification a expiré. Recommence le défi.", true);
+        },
+        "error-callback": (code) => {
+          captchaToken = "";
+          setCaptchaMessage(`La vérification Cloudflare est indisponible sur ce domaine (${code}). Connecte-toi depuis WikiMasters.`, true);
+        },
+      });
+    } catch {
+      setCaptchaMessage("Impossible de charger la vérification anti-robot. Réessaie plus tard.", true);
+    }
+  }
+
+  function loadTurnstile() {
+    if (window.turnstile) {
+      renderTurnstile();
+      return;
+    }
+    if (captchaScriptRequested) return;
+    captchaScriptRequested = true;
+    window.wmCotesTurnstileLoaded = renderTurnstile;
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=wmCotesTurnstileLoaded&render=explicit";
+    script.async = true;
+    script.onerror = () => setCaptchaMessage("Cloudflare Turnstile n’a pas pu se charger. Vérifie ta connexion puis réessaie.", true);
+    document.head.append(script);
+  }
+
+  function resetTurnstile() {
+    captchaToken = "";
+    if (captchaWidgetId !== null && window.turnstile) {
+      try { window.turnstile.reset(captchaWidgetId); } catch { /* Le widget sera recréé à la prochaine ouverture. */ }
+    }
+  }
+
+  loginButton.addEventListener("click", () => {
+    loginDialog.showModal();
+    loadTurnstile();
+  });
   $("#closeLogin").addEventListener("click", () => loginDialog.close());
   togglePassword.addEventListener("click", () => {
     const show = loginPassword.type === "password";
@@ -162,6 +230,10 @@
   });
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!captchaToken) {
+      message(loginMessage, "Complète la vérification anti-robot avant de te connecter.", true);
+      return;
+    }
     submitLogin.disabled = true;
     submitLogin.textContent = "Connexion…";
     loginMessage.hidden = true;
@@ -169,7 +241,7 @@
       const payload = await requestAuthToken("password", {
         email: $("#loginEmail").value.trim(),
         password: $("#loginPassword").value,
-      });
+      }, captchaToken);
       acceptSession(payload);
       loginForm.reset();
       loginPassword.type = "password";
@@ -180,6 +252,7 @@
     } catch (error) {
       message(loginMessage, error.message || "La connexion a échoué.", true);
     } finally {
+      resetTurnstile();
       submitLogin.disabled = false;
       submitLogin.textContent = "Se connecter";
     }

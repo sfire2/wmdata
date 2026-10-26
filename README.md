@@ -21,7 +21,7 @@ Ouvrez ensuite <http://localhost:4173>. La compilation récupère la configurati
 
 Le workflow `.github/workflows/pages.yml` prépare automatiquement le site à chaque push sur `main`, puis le publie sur GitHub Pages. À faire une seule fois dans le dépôt : ouvrez **Settings → Pages**, choisissez **GitHub Actions** comme source de déploiement, puis relancez le workflow depuis l'onglet **Actions**. GitHub doit avoir Pages activé pour le dépôt avant que `deploy-pages` puisse publier.
 
-Le workflow récupère la clé publique du catalogue depuis les scripts publiquement servis par WikiMasters. Cette clé est conçue pour être utilisée dans les clients publics ; aucun mot de passe ni jeton de session n'est intégré au site.
+Le workflow récupère la clé publique du catalogue et la clé publique Turnstile depuis les scripts publiquement servis par WikiMasters. Cette configuration est destinée aux clients publics ; aucun mot de passe ni jeton de session n'est intégré au site.
 
 Les pages et données appartiennent à WikiMasters. L'application est communautaire et non officielle. Ses appels utilisent l'API publique de WikiMasters et un jeton de session pour les enchères ; ces routes peuvent évoluer. En cas d'erreur, l'interface l'indique.
 

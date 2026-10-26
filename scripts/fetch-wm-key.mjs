@@ -10,7 +10,8 @@ const scripts = [...html.matchAll(/<script[^>]+src=["']([^"']*\/_next\/static\/[
   .map((match) => new URL(match[1], site).href);
 
 let anonKey;
-for (let offset = 0; offset < scripts.length && !anonKey; offset += 8) {
+let turnstileSiteKey;
+for (let offset = 0; offset < scripts.length && (!anonKey || !turnstileSiteKey); offset += 8) {
   const sources = await Promise.all(scripts.slice(offset, offset + 8).map(async (url) => {
     try {
       const response = await fetch(url);
@@ -20,11 +21,12 @@ for (let offset = 0; offset < scripts.length && !anonKey; offset += 8) {
     }
   }));
   for (const source of sources) {
-    anonKey = source.match(keyPattern)?.[0];
-    if (anonKey) break;
+    anonKey ||= source.match(keyPattern)?.[0];
+    turnstileSiteKey ||= source.match(/sitekey\s*:\s*["'](0x[\w-]+)["']/i)?.[1];
   }
 }
 
 if (!anonKey) throw new Error("Impossible de trouver la clé publique du catalogue WikiMasters.");
-await writeFile("wm-config.js", `window.WM_CONFIG = Object.freeze({ anonKey: ${JSON.stringify(anonKey)} });\n`, "utf8");
+if (!turnstileSiteKey) throw new Error("Impossible de trouver la clé publique Turnstile de WikiMasters.");
+await writeFile("wm-config.js", `window.WM_CONFIG = Object.freeze({ anonKey: ${JSON.stringify(anonKey)}, turnstileSiteKey: ${JSON.stringify(turnstileSiteKey)} });\n`, "utf8");
 console.log("Configuration publique WikiMasters générée.");
