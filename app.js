@@ -84,7 +84,7 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const code = payload.code || payload.error_code || "";
+      const code = String(payload.code || payload.error_code || "");
       const serviceMessage = payload.msg || payload.message || payload.error_description || payload.error || "";
       const normalizedMessage = String(serviceMessage).toLowerCase();
       let userMessage = `Connexion indisponible (HTTP ${response.status}).`;
