@@ -24,6 +24,8 @@
   let searchSequence = 0;
   let dataSequence = 0;
   const desktop = Boolean(window.wikiMasters);
+  const COMPANION_URL = "http://127.0.0.1:4174";
+  let companionStatusPromise;
 
   const price = (value) => `${Math.round(value).toLocaleString("fr-FR")} WB`;
 
@@ -48,6 +50,23 @@
       }
       return response.json();
     });
+  }
+
+  function getCompanionStatus() {
+    if (desktop) return window.wikiMasters.authStatus();
+    if (!companionStatusPromise) {
+      companionStatusPromise = fetch(`${COMPANION_URL}/api/status`, { mode: "cors", cache: "no-store" })
+        .then((response) => response.ok ? response.json() : null)
+        .catch(() => null);
+    }
+    return companionStatusPromise;
+  }
+
+  async function companionRequest(path, method = "GET") {
+    const response = await fetch(`${COMPANION_URL}${path}`, { method, mode: "cors", cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Compagnon indisponible (HTTP ${response.status}).`);
+    return payload;
   }
 
   async function findCards(query) {
@@ -270,9 +289,16 @@
         order: "end_at.asc",
         limit: "1000",
       });
-      const rows = desktop
-        ? await window.wikiMasters.getHistory(selectedCard.id, rarity)
-        : await request(`auctions?${params}`);
+      let rows;
+      if (desktop) {
+        rows = await window.wikiMasters.getHistory(selectedCard.id, rarity);
+      } else {
+        const localStatus = await getCompanionStatus();
+        if (!localStatus?.available) {
+          throw new Error("Lance le compagnon local (npm run companion), puis recharge la page pour afficher la courbe.");
+        }
+        rows = await companionRequest(`/api/history?cardId=${encodeURIComponent(selectedCard.id)}&rarity=${encodeURIComponent(rarity)}`);
+      }
       if (sequence !== dataSequence) return;
       const sales = rows.filter((sale) => Number.isFinite(Number(sale.current_bid)) && Number(sale.current_bid) > 0 && Number.isFinite(new Date(sale.end_at).getTime()));
       renderSummary(sales);
@@ -290,16 +316,23 @@
   const connection = $("#connection");
   const connectionText = $("#connectionText");
   async function refreshConnection() {
-    if (!desktop) {
-      connectionText.textContent = "Catalogue public";
-      connection.title = "Le catalogue est public. L’historique nécessite l’application de bureau connectée à WikiMasters.";
-      return;
-    }
     try {
-      const { connected } = await window.wikiMasters.authStatus();
-      connectionText.textContent = connected ? "WikiMasters connecté" : "Connecter WikiMasters";
-      connection.title = connected ? "Session WikiMasters détectée — cliquer pour revérifier" : "Cliquer pour ouvrir la connexion WikiMasters";
-      connection.dataset.connected = String(connected);
+      const status = await getCompanionStatus();
+      if (desktop) {
+        const connected = Boolean(status?.connected);
+        connectionText.textContent = connected ? "WikiMasters connecté" : "Connecter WikiMasters";
+        connection.title = connected ? "Session WikiMasters détectée — cliquer pour revérifier" : "Cliquer pour ouvrir la connexion WikiMasters";
+        connection.dataset.connected = String(connected);
+      } else if (status?.available) {
+        const connected = Boolean(status.connected);
+        connectionText.textContent = connected ? "Compagnon connecté" : "Connecter WikiMasters";
+        connection.title = connected ? "Compagnon local prêt — cliquer pour revérifier" : "Cliquer pour ouvrir la connexion WikiMasters dans le compagnon local";
+        connection.dataset.connected = String(connected);
+      } else {
+        connectionText.textContent = "Compagnon requis";
+        connection.title = "Lance npm run companion dans le dossier du projet, puis réessaie.";
+        delete connection.dataset.connected;
+      }
     } catch {
       connectionText.textContent = "Connexion indisponible";
     }
@@ -310,7 +343,15 @@
       setTimeout(refreshConnection, 1500);
       setTimeout(refreshConnection, 5000);
     } else {
-      window.open("https://www.wiki-masters.com/login", "_blank", "noopener,noreferrer");
+      companionStatusPromise = null;
+      const status = await getCompanionStatus();
+      if (status?.available) {
+        await companionRequest("/api/login", "POST");
+        setTimeout(() => { companionStatusPromise = null; refreshConnection(); }, 1500);
+        setTimeout(() => { companionStatusPromise = null; refreshConnection(); }, 5000);
+      } else {
+        message(chartMessage, "Démarre le compagnon local avec « npm run companion », puis recharge la page. Il ouvrira la connexion WikiMasters dans sa propre fenêtre.", true);
+      }
     }
   });
   refreshConnection();

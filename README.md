@@ -6,18 +6,29 @@ Application de cotes WikiMasters, disponible sur GitHub Pages et en application 
 
 La recherche dans le catalogue public fonctionne depuis GitHub Pages. L’API des enchères refuse les requêtes anonymes, et la politique inter-site de WikiMasters ne permet pas à GitHub Pages d’utiliser la session du site. La version Pages affiche donc le catalogue, mais ne peut pas charger la courbe.
 
-## Application de bureau avec historique
+## GitHub Pages avec historique
 
-La version Electron ouvre une fenêtre de connexion WikiMasters isolée et interroge l’historique avec la session locale. La session reste sur l’ordinateur et n’est pas envoyée à GitHub Pages.
+Un petit compagnon Electron peut fournir les courbes au site GitHub Pages. Il tourne sur `127.0.0.1`, ouvre sa propre fenêtre de connexion WikiMasters, et garde la session sur l’ordinateur. Le site ne lui envoie que l’identifiant de la carte et sa rareté ; le compagnon renvoie les ventes correspondantes.
+
+```bash
+npm install
+npm run companion
+```
+
+Laisse cette commande ouverte, ouvre le site Pages et autorise son accès au réseau local si le navigateur le demande. Clique sur le bouton de connexion en haut de page, connecte-toi à WikiMasters dans la fenêtre qui s’ouvre, puis reviens au site. La courbe se charge depuis le compagnon. Fermer le compagnon coupe cet accès.
+
+Le compagnon n’accepte que l’origine GitHub Pages de ce projet et les origines localhost pour le développement. Il ne demande ni ne stocke le mot de passe dans l’application.
+
+## Application de bureau autonome
+
+Pour lancer la même interface dans une fenêtre dédiée, avec son compagnon intégré :
 
 ```bash
 npm install
 npm run desktop
 ```
 
-Dans l’application, clique sur **Connecter WikiMasters**, connecte-toi sur la page officielle, puis reviens à l’application. La courbe se charge depuis la session de cette application. Le bouton en haut permet de revérifier l’état de connexion.
-
-Cette version lit les ventes terminées des 90 derniers jours, comme la courbe d’origine. Elle ne demande ni ne stocke le mot de passe dans l’application.
+Clique sur **Connecter WikiMasters** et connecte-toi dans la fenêtre officielle. Cette version lit les ventes terminées des 90 derniers jours, comme la courbe d’origine.
 
 ## Lancer le site localement
 

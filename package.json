@@ -8,7 +8,8 @@
   "scripts": {
     "start": "python -m http.server 4173",
     "build": "node scripts/fetch-wm-key.mjs",
-    "desktop": "electron ."
+    "desktop": "electron .",
+    "companion": "electron . --companion"
   },
   "devDependencies": {
     "electron": "^44.9.3"
