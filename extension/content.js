@@ -2,6 +2,7 @@
   const PREFIX = "wm-cotes-v1:";
   const TTL = 12 * 60 * 60 * 1000;
   const rarities = new Set(["C", "R", "SR", "UR", "PC", "L"]);
+  const rarityColors = { C: "#94a3b8", R: "#60a5fa", SR: "#c084fc", UR: "#fbbf24", PC: "#fb7185", L: "#facc15" };
   const pendingIds = new Set();
   const searchCache = new Map();
   const tasks = [];
@@ -10,6 +11,7 @@
   let scanTimer;
   let searchTimer;
   let panel;
+  let launcher;
 
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith("wm-cotes-history-v1:")) localStorage.removeItem(key);
@@ -477,6 +479,265 @@
     return panel;
   }
 
+  function formatAppPrice(value) {
+    return `${Math.round(value).toLocaleString("fr-FR")} WB`;
+  }
+
+  function appMetric(label, value) {
+    const tile = document.createElement("div");
+    tile.className = "wm-cotes-app-metric";
+    const caption = document.createElement("span");
+    caption.textContent = label;
+    const amount = document.createElement("strong");
+    amount.textContent = value;
+    tile.append(caption, amount);
+    return tile;
+  }
+
+  function renderAppChart(sales, chart) {
+    if (!sales.length) {
+      chart.textContent = "Aucune enchère vendue trouvée sur les 90 derniers jours pour cette rareté.";
+      chart.className = "wm-cotes-app-chart-message";
+      return;
+    }
+    const weeks = new Map();
+    for (const sale of sales) {
+      const monday = new Date(sale.end_at);
+      monday.setHours(0, 0, 0, 0);
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const time = monday.getTime();
+      const bucket = weeks.get(time) || { total: 0, count: 0 };
+      bucket.total += Number(sale.current_bid);
+      bucket.count += 1;
+      weeks.set(time, bucket);
+    }
+    const points = [...weeks].map(([time, item]) => ({ time, value: item.total / item.count, count: item.count }));
+    const min = Math.min(...points.map((point) => point.value));
+    const max = Math.max(...points.map((point) => point.value));
+    const spread = max - min || Math.max(1, max * 0.16);
+    const width = 760, height = 290, margin = { left: 60, right: 20, top: 35, bottom: 38 };
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+    const start = points[0].time, end = Math.max(Date.now(), points.at(-1).time + 1);
+    const x = (time) => points.length === 1 ? margin.left + plotWidth / 2 : margin.left + (time - start) / (end - start) * plotWidth;
+    const y = (value) => margin.top + plotHeight - (value - min + spread * 0.12) / (spread * 1.24) * plotHeight;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", `Évolution hebdomadaire du prix moyen, ${sales.length} ventes`);
+    const defs = document.createElementNS(svg.namespaceURI, "defs");
+    defs.innerHTML = '<linearGradient id="wmCotesAppArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#73e2c0" stop-opacity=".2"/><stop offset="100%" stop-color="#73e2c0" stop-opacity="0"/></linearGradient>';
+    svg.append(defs);
+    const add = (tag, attrs, parent = svg) => {
+      const element = document.createElementNS(svg.namespaceURI, tag);
+      for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, String(value));
+      parent.append(element);
+      return element;
+    };
+    [0, 0.5, 1].forEach((fraction) => {
+      const yy = margin.top + fraction * plotHeight;
+      add("line", { x1: margin.left, x2: width - margin.right, y1: yy, y2: yy, class: "wm-cotes-app-grid" });
+      const label = add("text", { x: margin.left - 10, y: yy + 4, class: "wm-cotes-app-axis", "text-anchor": "end" });
+      label.textContent = Math.round(max - fraction * (max - min)).toLocaleString("fr-FR");
+    });
+    const path = points.map((point, index) => `${index ? "L" : "M"}${x(point.time).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+    add("path", { d: `${path} L${x(points.at(-1).time)},${height - margin.bottom} L${x(points[0].time)},${height - margin.bottom} Z`, class: "wm-cotes-app-area" });
+    add("path", { d: path, class: "wm-cotes-app-line" });
+    for (const point of points) {
+      const dot = add("circle", { cx: x(point.time), cy: y(point.value), r: 4, class: "wm-cotes-app-dot" });
+      const title = add("title", {}, dot);
+      title.textContent = `${new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(new Date(point.time))} : ${formatAppPrice(point.value)} · ${point.count} vente${point.count > 1 ? "s" : ""}`;
+    }
+    [points[0].time, (points[0].time + points.at(-1).time) / 2, points.at(-1).time].forEach((time, index) => {
+      const label = add("text", { x: index === 0 ? margin.left : index === 2 ? width - margin.right : margin.left + plotWidth / 2, y: height - 8, class: "wm-cotes-app-axis", "text-anchor": index === 0 ? "start" : index === 2 ? "end" : "middle" });
+      label.textContent = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short" }).format(new Date(time));
+    });
+    chart.replaceChildren(svg);
+    chart.className = "wm-cotes-app-chart-container";
+  }
+
+  async function loadAppCard(card, rarity, summary, chart, token) {
+    summary.replaceChildren();
+    chart.textContent = "Chargement de l’historique des enchères…";
+    chart.className = "wm-cotes-app-chart-message";
+    try {
+      const rows = await readAuctionHistory(card.id, rarity);
+      if (token.cancelled) return;
+      if (!rows) throw new Error("Session WikiMasters indisponible. Connecte-toi au site puis réessaie.");
+      const sales = rows
+        .filter((sale) => Number.isFinite(Number(sale.current_bid)) && Number(sale.current_bid) > 0 && Number.isFinite(new Date(sale.end_at).getTime()))
+        .sort((a, b) => new Date(a.end_at) - new Date(b.end_at));
+      if (sales.length) {
+        const prices = sales.map((sale) => Number(sale.current_bid));
+        summary.append(
+          appMetric("Moyenne sur 90 jours", formatAppPrice(prices.reduce((sum, value) => sum + value, 0) / prices.length)),
+          appMetric("Ventes", String(sales.length)),
+          appMetric("Fourchette", `${formatAppPrice(Math.min(...prices))} – ${formatAppPrice(Math.max(...prices))}`),
+          appMetric("Dernière vente", formatAppPrice(prices.at(-1))),
+        );
+      } else {
+        summary.append(appMetric("Ventes sur 90 jours", "Aucune vente"));
+      }
+      renderAppChart(sales, chart);
+    } catch (error) {
+      if (token.cancelled) return;
+      chart.textContent = error.message || "Impossible de charger l’historique.";
+      chart.className = "wm-cotes-app-chart-message is-error";
+    }
+  }
+
+  function ensureAppPanel() {
+    if (panel) return panel;
+    panel = document.createElement("div");
+    panel.className = "wm-cotes-app-overlay";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <button class="wm-cotes-app-backdrop" type="button" aria-label="Fermer le panneau"></button>
+      <section class="wm-cotes-app" role="dialog" aria-modal="true" aria-label="WikiMasters Cotes">
+        <header class="wm-cotes-app-topbar">
+          <a class="wm-cotes-app-brand" href="#" aria-label="WikiMasters Cotes, accueil"><span class="wm-cotes-app-brand-mark">W</span><span><strong>WikiMasters</strong><small>Observatoire des cotes</small></span></a>
+          <span class="wm-cotes-app-connection"><i></i> Session WikiMasters</span>
+          <button class="wm-cotes-app-close" type="button" aria-label="Fermer">×</button>
+        </header>
+        <div class="wm-cotes-app-scroll">
+          <section class="wm-cotes-app-hero">
+            <div class="wm-cotes-app-eyebrow"><i></i> OBSERVATOIRE DES CARTES</div>
+            <h1>La cote de vos cartes,<br><em>en clair.</em></h1>
+            <p>Recherchez une carte et explorez l’évolution hebdomadaire de ses enchères conclues.</p>
+            <label class="wm-cotes-app-searchbox"><span aria-hidden="true">⌕</span><input type="search" placeholder="Nom de la carte…" autocomplete="off" spellcheck="false" aria-label="Rechercher une carte"></label>
+            <div class="wm-cotes-app-search-help">Saisis au moins 2 caractères</div>
+            <div class="wm-cotes-app-results" role="listbox" aria-label="Résultats de recherche"></div>
+          </section>
+          <section class="wm-cotes-app-workspace" hidden>
+            <div class="wm-cotes-app-selected">
+              <span class="wm-cotes-app-card-icon">✳</span>
+              <div class="wm-cotes-app-card-copy"><small>CARTE SÉLECTIONNÉE</small><h2></h2></div>
+              <span class="wm-cotes-app-selected-rarity"></span>
+              <label class="wm-cotes-app-rarity-control"><small>RARETÉ</small><select aria-label="Choisir la rareté"></select></label>
+            </div>
+            <div class="wm-cotes-app-summary"></div>
+            <section class="wm-cotes-app-chart-card">
+              <div class="wm-cotes-app-chart-heading"><div><small>HISTORIQUE DU MARCHÉ</small><h2>Évolution des prix</h2></div><span class="wm-cotes-app-period"><i></i>90 derniers jours</span></div>
+              <div class="wm-cotes-app-chart-message">Choisis une rareté pour charger l’historique.</div>
+            </section>
+          </section>
+          <footer class="wm-cotes-app-footer"><span>WIKIMASTERS · COTES</span><span>Application communautaire non officielle</span></footer>
+        </div>
+      </section>`;
+    document.body.append(panel);
+
+    const $panel = (selector) => panel.querySelector(selector);
+    const search = $panel('input[type="search"]');
+    const searchHelp = $panel(".wm-cotes-app-search-help");
+    const results = $panel(".wm-cotes-app-results");
+    const workspace = $panel(".wm-cotes-app-workspace");
+    const summary = $panel(".wm-cotes-app-summary");
+    const chart = $panel(".wm-cotes-app-chart-message");
+    const raritySelect = $panel(".wm-cotes-app-rarity-control select");
+    let searchSequence = 0;
+    let dataToken = { cancelled: true };
+    let selectedCard = null;
+
+    const closePanel = () => {
+      panel.hidden = true;
+      launcher?.setAttribute("aria-expanded", "false");
+    };
+    $panel(".wm-cotes-app-close").addEventListener("click", closePanel);
+    $panel(".wm-cotes-app-backdrop").addEventListener("click", closePanel);
+    $panel(".wm-cotes-app-brand").addEventListener("click", (event) => {
+      event.preventDefault();
+      search.value = "";
+      results.replaceChildren();
+      workspace.hidden = true;
+      search.focus();
+    });
+    panel.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closePanel();
+    });
+
+    const chooseCard = (card) => {
+      dataToken.cancelled = true;
+      dataToken = { cancelled: false };
+      selectedCard = card;
+      const rarity = rarities.has(card.rarity) ? card.rarity : "C";
+      workspace.style.setProperty("--rarity", rarityColors[rarity]);
+      $panel(".wm-cotes-app-card-copy h2").textContent = card.wikipedia_title;
+      $panel(".wm-cotes-app-selected-rarity").textContent = rarity;
+      raritySelect.replaceChildren();
+      ["C", "R", "SR", "UR", "PC", "L"].forEach((code) => {
+        const option = document.createElement("option");
+        option.value = code;
+        option.textContent = code;
+        raritySelect.append(option);
+      });
+      raritySelect.value = rarity;
+      workspace.hidden = false;
+      loadAppCard(selectedCard, raritySelect.value, summary, chart, dataToken);
+      workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    raritySelect.addEventListener("change", () => {
+      if (!selectedCard) return;
+      dataToken.cancelled = true;
+      dataToken = { cancelled: false };
+      workspace.style.setProperty("--rarity", rarityColors[raritySelect.value]);
+      $panel(".wm-cotes-app-selected-rarity").textContent = raritySelect.value;
+      loadAppCard(selectedCard, raritySelect.value, summary, chart, dataToken);
+    });
+
+    search.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      const sequence = ++searchSequence;
+      const query = search.value.trim();
+      results.replaceChildren();
+      workspace.hidden = true;
+      selectedCard = null;
+      dataToken.cancelled = true;
+      if (query.length < 2) {
+        searchHelp.textContent = "Saisis au moins 2 caractères";
+        return;
+      }
+      searchHelp.textContent = "Recherche en cours…";
+      searchTimer = setTimeout(async () => {
+        try {
+          const cards = await searchCards(query.toLocaleLowerCase("fr-FR"));
+          if (sequence !== searchSequence || search.value.trim() !== query) return;
+          results.replaceChildren();
+          if (!cards.length) {
+            results.textContent = "Aucune carte trouvée.";
+            results.classList.add("is-empty");
+          } else {
+            results.classList.remove("is-empty");
+            cards.forEach((card) => {
+              const rarity = rarities.has(card.rarity) ? card.rarity : "C";
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "wm-cotes-app-result";
+              button.style.setProperty("--rarity", rarityColors[rarity]);
+              button.setAttribute("role", "option");
+              const symbol = document.createElement("span");
+              symbol.className = "wm-cotes-app-result-symbol";
+              symbol.textContent = "✳";
+              const title = document.createElement("span");
+              title.className = "wm-cotes-app-result-title";
+              title.textContent = card.wikipedia_title;
+              const badge = document.createElement("span");
+              badge.className = "wm-cotes-app-result-rarity";
+              badge.textContent = rarity;
+              button.append(symbol, title, badge);
+              button.addEventListener("click", () => chooseCard({ ...card, rarity }));
+              results.append(button);
+            });
+          }
+          searchHelp.textContent = `${cards.length} résultat${cards.length > 1 ? "s" : ""}`;
+        } catch (error) {
+          if (sequence === searchSequence) searchHelp.textContent = error.message || "La recherche a échoué.";
+        }
+      }, 160);
+    });
+    return panel;
+  }
+
   function show(card, stats, unavailable = false) {
     const badge = document.createElement("div");
     badge.className = "wm-cotes-badge";
@@ -528,13 +789,14 @@
       status.setAttribute("aria-label", "Rechercher les cotes d’une carte WikiMasters");
       status.setAttribute("aria-expanded", "false");
       status.addEventListener("click", () => {
-        const searchPanel = ensurePanel();
+        const searchPanel = ensureAppPanel();
         searchPanel.hidden = !searchPanel.hidden;
         status.setAttribute("aria-expanded", String(!searchPanel.hidden));
         if (!searchPanel.hidden) searchPanel.querySelector("input")?.focus();
       });
       document.body.append(status);
     }
+    launcher = status;
     status.title = `${detected} carte(s) détectée(s) sur cette page`;
     status.dataset.count = String(detected);
   }
