@@ -1,16 +1,25 @@
 # WikiMasters · Cotes
 
-Application web statique pour rechercher des cartes et consulter leurs cotes et leur historique d'enchères.
+Application de cotes WikiMasters, disponible sur GitHub Pages et en application de bureau.
 
-## État des accès
+## Accès aux enchères
 
-La recherche dans le catalogue public fonctionne depuis GitHub Pages. Les enchères exigent un jeton de session WikiMasters. Le navigateur ne peut pas lire la session ouverte sur `www.wiki-masters.com` depuis `sfire2.github.io` : les deux sites sont sur des origines différentes et l'API des ventes ne renvoie pas les en-têtes CORS requis pour partager cette session.
+La recherche dans le catalogue public fonctionne depuis GitHub Pages. L’API des enchères refuse les requêtes anonymes, et la politique inter-site de WikiMasters ne permet pas à GitHub Pages d’utiliser la session du site. La version Pages affiche donc le catalogue, mais ne peut pas charger la courbe.
 
-Pour activer la vérification automatique, le propriétaire de WikiMasters doit exposer un endpoint inter-site qui vérifie la session et fournit les ventes. Il doit autoriser explicitement `https://sfire2.github.io` avec les requêtes authentifiées (`Access-Control-Allow-Origin` précis et `Access-Control-Allow-Credentials: true`). Ce réglage ne peut pas être fait depuis ce dépôt GitHub Pages.
+## Application de bureau avec historique
 
-## Lancer en local
+La version Electron ouvre une fenêtre de connexion WikiMasters isolée et interroge l’historique avec la session locale. La session reste sur l’ordinateur et n’est pas envoyée à GitHub Pages.
 
-Avec Python installé :
+```bash
+npm install
+npm run desktop
+```
+
+Dans l’application, clique sur **Connecter WikiMasters**, connecte-toi sur la page officielle, puis reviens à l’application. La courbe se charge depuis la session de cette application. Le bouton en haut permet de revérifier l’état de connexion.
+
+Cette version lit les ventes terminées des 90 derniers jours, comme la courbe d’origine. Elle ne demande ni ne stocke le mot de passe dans l’application.
+
+## Lancer le site localement
 
 ```bash
 npm run build
@@ -23,4 +32,4 @@ Ouvre ensuite <http://localhost:4173>. La compilation récupère la clé publiqu
 
 Le workflow `.github/workflows/pages.yml` publie le site à chaque push sur `main`. La source de déploiement du dépôt doit être réglée sur **Settings → Pages → GitHub Actions**.
 
-L'application est communautaire et non officielle. Les anciennes sources de l'extension Chrome restent dans `legacy-extension/` et le lanceur Electron précédent dans `legacy-desktop/`.
+L’application est communautaire et non officielle. Les anciennes sources de l’extension Chrome restent dans `legacy-extension/`.

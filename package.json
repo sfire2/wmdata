@@ -4,8 +4,13 @@
   "private": true,
   "description": "Application web statique pour consulter les cotes WikiMasters, déployable sur GitHub Pages.",
   "type": "module",
+  "main": "legacy-desktop/main.cjs",
   "scripts": {
     "start": "python -m http.server 4173",
-    "build": "node scripts/fetch-wm-key.mjs"
+    "build": "node scripts/fetch-wm-key.mjs",
+    "desktop": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^44.9.3"
   }
 }

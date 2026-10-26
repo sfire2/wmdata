@@ -23,6 +23,7 @@
   let searchTimer;
   let searchSequence = 0;
   let dataSequence = 0;
+  const desktop = Boolean(window.wikiMasters);
 
   const price = (value) => `${Math.round(value).toLocaleString("fr-FR")} WB`;
 
@@ -52,6 +53,11 @@
   async function findCards(query) {
     const normalized = query.trim().toLocaleLowerCase("fr-FR");
     if (cache.has(normalized)) return cache.get(normalized);
+    if (desktop) {
+      const cards = await window.wikiMasters.searchCards(normalized);
+      cache.set(normalized, cards);
+      return cards;
+    }
     const params = new URLSearchParams({
       select: "id,rarity,wikipedia_title",
       lang: "eq.fr",
@@ -264,7 +270,9 @@
         order: "end_at.asc",
         limit: "1000",
       });
-      const rows = await request(`auctions?${params}`);
+      const rows = desktop
+        ? await window.wikiMasters.getHistory(selectedCard.id, rarity)
+        : await request(`auctions?${params}`);
       if (sequence !== dataSequence) return;
       const sales = rows.filter((sale) => Number.isFinite(Number(sale.current_bid)) && Number(sale.current_bid) > 0 && Number.isFinite(new Date(sale.end_at).getTime()));
       renderSummary(sales);
@@ -279,7 +287,33 @@
     }
   }
 
-  $("#connectionText").textContent = "Catalogue public";
+  const connection = $("#connection");
+  const connectionText = $("#connectionText");
+  async function refreshConnection() {
+    if (!desktop) {
+      connectionText.textContent = "Catalogue public";
+      connection.title = "Le catalogue est public. L’historique nécessite l’application de bureau connectée à WikiMasters.";
+      return;
+    }
+    try {
+      const { connected } = await window.wikiMasters.authStatus();
+      connectionText.textContent = connected ? "WikiMasters connecté" : "Connecter WikiMasters";
+      connection.title = connected ? "Session WikiMasters détectée — cliquer pour revérifier" : "Cliquer pour ouvrir la connexion WikiMasters";
+      connection.dataset.connected = String(connected);
+    } catch {
+      connectionText.textContent = "Connexion indisponible";
+    }
+  }
+  connection.addEventListener("click", async () => {
+    if (desktop) {
+      await window.wikiMasters.openLogin();
+      setTimeout(refreshConnection, 1500);
+      setTimeout(refreshConnection, 5000);
+    } else {
+      window.open("https://www.wiki-masters.com/login", "_blank", "noopener,noreferrer");
+    }
+  });
+  refreshConnection();
   $(".searchbox kbd").textContent = "Ctrl K";
   search.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {

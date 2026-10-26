@@ -24,7 +24,7 @@ function makeWindow() {
       session: wmSession,
     },
   });
-  mainWindow.loadFile("index.html");
+  mainWindow.loadFile(path.join(__dirname, "..", "index.html"));
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith(SITE)) shell.openExternal(url);
     return { action: "deny" };
