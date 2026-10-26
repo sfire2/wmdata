@@ -20,6 +20,8 @@
   const loginForm = $("#loginForm");
   const loginMessage = $("#loginMessage");
   const submitLogin = $("#submitLogin");
+  const loginPassword = $("#loginPassword");
+  const togglePassword = $("#togglePassword");
   const cache = new Map();
   let selectedCard = null;
   let searchTimer;
@@ -138,6 +140,12 @@
 
   loginButton.addEventListener("click", () => loginDialog.showModal());
   $("#closeLogin").addEventListener("click", () => loginDialog.close());
+  togglePassword.addEventListener("click", () => {
+    const show = loginPassword.type === "password";
+    loginPassword.type = show ? "text" : "password";
+    togglePassword.textContent = show ? "Masquer" : "Afficher";
+    togglePassword.setAttribute("aria-pressed", String(show));
+  });
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     submitLogin.disabled = true;
@@ -150,6 +158,9 @@
       });
       acceptSession(payload);
       loginForm.reset();
+      loginPassword.type = "password";
+      togglePassword.textContent = "Afficher";
+      togglePassword.setAttribute("aria-pressed", "false");
       loginDialog.close();
       if (selectedCard && raritySelect.value) loadCardData();
     } catch (error) {

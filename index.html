@@ -63,7 +63,10 @@
       <label for="loginEmail">Adresse courriel</label>
       <input id="loginEmail" type="email" autocomplete="username" required>
       <label for="loginPassword">Mot de passe</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <div class="password-control">
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+        <button id="togglePassword" type="button" aria-controls="loginPassword" aria-pressed="false">Afficher</button>
+      </div>
       <div class="login-message" id="loginMessage" aria-live="polite" hidden></div>
       <button class="text-button login-submit" id="submitLogin" type="submit">Se connecter</button>
       <a class="login-site-link" href="https://www.wiki-masters.com/login" target="_blank" rel="noreferrer">Créer un compte ou réinitialiser le mot de passe sur WikiMasters</a>
