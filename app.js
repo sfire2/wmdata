@@ -84,10 +84,24 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(response.status === 400 || response.status === 401
-        ? "Identifiants incorrects ou session WikiMasters indisponible."
-        : `Connexion indisponible (HTTP ${response.status}).`);
+      const code = payload.code || payload.error_code || "";
+      const serviceMessage = payload.msg || payload.message || payload.error_description || payload.error || "";
+      const normalizedMessage = String(serviceMessage).toLowerCase();
+      let userMessage = `Connexion indisponible (HTTP ${response.status}).`;
+      if (response.status === 429 || code.includes("rate_limit")) {
+        userMessage = "Trop de tentatives de connexion. Réessaie dans quelques minutes.";
+      } else if (code === "email_not_confirmed" || normalizedMessage.includes("email not confirmed")) {
+        userMessage = "Cette adresse courriel n’est pas encore confirmée. Vérifie le message de confirmation de WikiMasters.";
+      } else if (code === "captcha_failed" || normalizedMessage.includes("captcha")) {
+        userMessage = "La vérification anti-robot de WikiMasters a échoué. Réessaie depuis leur page de connexion.";
+      } else if (code === "invalid_credentials" || normalizedMessage.includes("invalid login credentials")) {
+        userMessage = "WikiMasters n’a pas accepté cette adresse courriel et ce mot de passe.";
+      } else if (serviceMessage) {
+        userMessage = String(serviceMessage);
+      }
+      const error = new Error(userMessage);
       error.status = response.status;
+      error.code = code;
       error.sessionExpired = grant === "refresh_token" && (response.status === 400 || response.status === 401);
       throw error;
     }
