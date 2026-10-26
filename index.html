@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WikiMasters · Cotes</title>
-  <link rel="stylesheet" href="app.css?v=3">
+  <link rel="stylesheet" href="app.css?v=4">
 </head>
 <body>
   <main class="shell">
@@ -15,16 +15,15 @@
       </a>
       <div class="connection" id="connection">
         <span class="connection-dot"></span>
-        <span id="connectionText">Vérification de la connexion…</span>
-        <button class="text-button" id="loginButton" type="button">Se connecter</button>
-        <button class="text-button" id="logoutButton" type="button" hidden>Se déconnecter</button>
+        <span id="connectionText">Catalogue public</span>
       </div>
+      <a class="top-link" href="https://www.wiki-masters.com/login" target="_blank" rel="noreferrer">Ouvrir WikiMasters <span aria-hidden="true">↗</span></a>
     </header>
 
     <section class="hero">
-      <div class="eyebrow"><span></span> MARCHÉ DES CARTES</div>
-      <h1>Suivez la valeur<br><em>de vos cartes.</em></h1>
-      <p>Recherchez une carte et visualisez l’évolution hebdomadaire de ses enchères conclues.</p>
+      <div class="eyebrow"><span></span> OBSERVATOIRE DES CARTES</div>
+      <h1>La cote de vos cartes,<br><em>en clair.</em></h1>
+      <p>Recherchez une carte et explorez l’évolution hebdomadaire de ses enchères conclues.</p>
       <label class="searchbox" for="cardSearch">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
         <input id="cardSearch" type="search" placeholder="Nom de la carte…" autocomplete="off" spellcheck="false">
@@ -35,9 +34,10 @@
     </section>
 
     <section class="workspace" id="workspace" hidden>
-      <div class="selected-card">
+      <div class="selected-card" id="selectedCard">
         <div class="card-icon">✳</div>
         <div class="card-copy"><span>CARTE SÉLECTIONNÉE</span><h2 id="selectedName"></h2></div>
+        <span class="selected-rarity" id="selectedRarity"></span>
         <label class="rarity-control" for="raritySelect"><span>RARETÉ</span><select id="raritySelect" aria-label="Choisir la rareté"></select></label>
       </div>
 
@@ -51,33 +51,12 @@
         <div id="chartMessage" class="chart-message">Choisissez une rareté pour charger l’historique.</div>
         <div id="chartContainer" class="chart-container" hidden></div>
       </section>
-      <p class="footnote">Les prix sont calculés à partir des enchères vendues accessibles avec votre session WikiMasters. Les moyennes sont regroupées par semaine.</p>
+      <p class="footnote">Les enchères nécessitent une session WikiMasters. GitHub Pages ne peut pas vérifier cette session tant que l’API WikiMasters n’autorise pas l’accès inter-site.</p>
     </section>
 
     <footer><span>WIKIMASTERS · COTES</span><span>Application communautaire non officielle</span></footer>
   </main>
-  <dialog class="login-dialog" id="loginDialog" aria-labelledby="loginTitle">
-    <form id="loginForm">
-      <div class="dialog-heading"><div><span class="section-kicker">SESSION WIKIMASTERS</span><h2 id="loginTitle">Se connecter</h2></div><button class="dialog-close" id="closeLogin" type="button" aria-label="Fermer">×</button></div>
-      <p>Connectez-vous pour consulter les ventes conclues et leur historique.</p>
-      <label for="loginEmail">Adresse courriel</label>
-      <input id="loginEmail" type="email" autocomplete="username" required>
-      <label for="loginPassword">Mot de passe</label>
-      <div class="password-control">
-        <input id="loginPassword" type="password" autocomplete="current-password" required>
-        <button id="togglePassword" type="button" aria-controls="loginPassword" aria-pressed="false">Afficher</button>
-      </div>
-      <div class="captcha-area">
-        <div id="turnstileWidget"></div>
-        <div class="captcha-message" id="captchaMessage" aria-live="polite" hidden></div>
-      </div>
-      <div class="login-message" id="loginMessage" aria-live="polite" hidden></div>
-      <button class="text-button login-submit" id="submitLogin" type="submit">Se connecter</button>
-      <a class="login-site-link" href="https://www.wiki-masters.com/login" target="_blank" rel="noreferrer">Créer un compte ou réinitialiser le mot de passe sur WikiMasters</a>
-      <small>Vos identifiants sont envoyés directement au service d’authentification WikiMasters. L’application ne les enregistre pas.</small>
-    </form>
-  </dialog>
-  <script src="wm-config.js?v=2"></script>
-  <script src="app.js?v=4"></script>
+  <script src="wm-config.js?v=3"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

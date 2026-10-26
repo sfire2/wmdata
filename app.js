@@ -1,8 +1,14 @@
 (() => {
   const API = "https://cyrxjeppjqsxxjayfrur.supabase.co/rest/v1";
-  const AUTH = "https://cyrxjeppjqsxxjayfrur.supabase.co/auth/v1";
-  const SESSION_KEY = "wm-cotes-refresh-token";
   const RARITIES = ["C", "R", "SR", "UR", "PC", "L"];
+  const RARITY_COLORS = {
+    C: "#94a3b8",
+    R: "#60a5fa",
+    SR: "#c084fc",
+    UR: "#fbbf24",
+    PC: "#fb7185",
+    L: "#34d399",
+  };
   const $ = (selector) => document.querySelector(selector);
   const search = $("#cardSearch");
   const results = $("#searchResults");
@@ -12,28 +18,11 @@
   const summary = $("#summary");
   const chartMessage = $("#chartMessage");
   const chartContainer = $("#chartContainer");
-  const connection = $("#connection");
-  const connectionText = $("#connectionText");
-  const loginButton = $("#loginButton");
-  const logoutButton = $("#logoutButton");
-  const loginDialog = $("#loginDialog");
-  const loginForm = $("#loginForm");
-  const loginMessage = $("#loginMessage");
-  const submitLogin = $("#submitLogin");
-  const loginPassword = $("#loginPassword");
-  const togglePassword = $("#togglePassword");
-  const turnstileWidget = $("#turnstileWidget");
-  const captchaMessage = $("#captchaMessage");
   const cache = new Map();
   let selectedCard = null;
   let searchTimer;
   let searchSequence = 0;
   let dataSequence = 0;
-  let authSession = null;
-  let restoreSessionPromise;
-  let captchaToken = "";
-  let captchaWidgetId = null;
-  let captchaScriptRequested = false;
 
   const price = (value) => `${Math.round(value).toLocaleString("fr-FR")} WB`;
 
@@ -43,232 +32,22 @@
     node.classList.toggle("is-error", isError);
   }
 
-  function request(path, accessToken) {
+  function request(path) {
     const key = window.WM_CONFIG?.anonKey;
-    if (!key) throw new Error("Configuration du catalogue introuvable. Rechargez la page plus tard.");
+    if (!key) throw new Error("Configuration du catalogue introuvable. Recharge la page plus tard.");
     return fetch(`${API}/${path}`, {
-      headers: { apikey: key, Authorization: `Bearer ${accessToken || key}` },
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
     }).then(async (response) => {
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         const error = new Error(payload.message || `Catalogue indisponible (HTTP ${response.status}).`);
         error.status = response.status;
-        error.code = payload.code;
+        error.code = String(payload.code || "");
         throw error;
       }
       return response.json();
     });
   }
-
-  function updateConnection() {
-    const connected = Boolean(authSession?.refreshToken && authSession?.accessToken);
-    connection.classList.toggle("is-connected", connected);
-    connectionText.textContent = connected ? "Session WikiMasters active" : "Session WikiMasters requise";
-    loginButton.hidden = connected;
-    logoutButton.hidden = !connected;
-  }
-
-  function saveRefreshToken(refreshToken) {
-    authSession = { ...authSession, refreshToken };
-    try { localStorage.setItem(SESSION_KEY, refreshToken); } catch { /* Le jeton reste en mémoire jusqu'à la fermeture. */ }
-  }
-
-  function clearSession() {
-    authSession = null;
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* stockage indisponible */ }
-    updateConnection();
-  }
-
-  async function requestAuthToken(grant, body, verificationToken) {
-    const key = window.WM_CONFIG?.anonKey;
-    if (!key) throw new Error("Configuration du catalogue introuvable. Rechargez la page plus tard.");
-    const response = await fetch(`${AUTH}/token?grant_type=${grant}`, {
-      method: "POST",
-      headers: { apikey: key, "Content-Type": "application/json" },
-      body: JSON.stringify(grant === "password" && verificationToken
-        ? { ...body, gotrue_meta_security: { captcha_token: verificationToken } }
-        : body),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const code = String(payload.code || payload.error_code || "");
-      const serviceMessage = payload.msg || payload.message || payload.error_description || payload.error || "";
-      const normalizedMessage = String(serviceMessage).toLowerCase();
-      let userMessage = `Connexion indisponible (HTTP ${response.status}).`;
-      if (response.status === 429 || code.includes("rate_limit")) {
-        userMessage = "Trop de tentatives de connexion. Réessaie dans quelques minutes.";
-      } else if (code === "email_not_confirmed" || normalizedMessage.includes("email not confirmed")) {
-        userMessage = "Cette adresse courriel n’est pas encore confirmée. Vérifie le message de confirmation de WikiMasters.";
-      } else if (code === "captcha_failed" || normalizedMessage.includes("captcha")) {
-        userMessage = "WikiMasters a refusé la vérification anti-robot. Recommence le défi et réessaie.";
-      } else if (code === "invalid_credentials" || normalizedMessage.includes("invalid login credentials")) {
-        userMessage = "WikiMasters n’a pas accepté cette adresse courriel et ce mot de passe.";
-      } else if (serviceMessage) {
-        userMessage = String(serviceMessage);
-      }
-      const error = new Error(userMessage);
-      error.status = response.status;
-      error.code = code;
-      error.sessionExpired = grant === "refresh_token" && (response.status === 400 || response.status === 401);
-      throw error;
-    }
-    return payload;
-  }
-
-  function acceptSession(payload) {
-    if (!payload.access_token || !payload.refresh_token) throw new Error("WikiMasters n’a pas renvoyé de session valide.");
-    authSession = {
-      accessToken: payload.access_token,
-      refreshToken: payload.refresh_token,
-      expiresAt: Date.now() + Number(payload.expires_in || 3600) * 1000,
-    };
-    saveRefreshToken(payload.refresh_token);
-    updateConnection();
-  }
-
-  async function refreshSession() {
-    if (!authSession?.refreshToken) return null;
-    const payload = await requestAuthToken("refresh_token", { refresh_token: authSession.refreshToken });
-    acceptSession(payload);
-    return authSession.accessToken;
-  }
-
-  async function getAccessToken() {
-    if (!authSession?.refreshToken) return null;
-    if (!authSession.accessToken || authSession.expiresAt < Date.now() + 60_000) return refreshSession();
-    return authSession.accessToken;
-  }
-
-  async function restoreSession() {
-    connectionText.textContent = "Vérification de la session…";
-    let refreshToken = "";
-    try { refreshToken = localStorage.getItem(SESSION_KEY) || ""; } catch { /* stockage indisponible */ }
-    if (!refreshToken) {
-      updateConnection();
-      return;
-    }
-    authSession = { refreshToken };
-    try {
-      await refreshSession();
-    } catch (error) {
-      if (error.status === 400 || error.status === 401) clearSession();
-      else {
-        updateConnection();
-        connectionText.textContent = "Session à vérifier";
-      }
-    }
-  }
-
-  function setCaptchaMessage(text, isError = false) {
-    captchaMessage.textContent = text;
-    captchaMessage.hidden = !text;
-    captchaMessage.classList.toggle("is-error", isError);
-  }
-
-  function renderTurnstile() {
-    if (captchaWidgetId !== null || !window.turnstile) return;
-    const sitekey = window.WM_CONFIG?.turnstileSiteKey;
-    if (!sitekey) {
-      setCaptchaMessage("La configuration de vérification WikiMasters est introuvable.", true);
-      return;
-    }
-    try {
-      captchaWidgetId = window.turnstile.render(turnstileWidget, {
-        sitekey,
-        theme: "auto",
-        appearance: "interaction-only",
-        callback: (token) => {
-          captchaToken = token;
-          setCaptchaMessage("");
-        },
-        "expired-callback": () => {
-          captchaToken = "";
-          setCaptchaMessage("La vérification a expiré. Recommence le défi.", true);
-        },
-        "error-callback": (code) => {
-          captchaToken = "";
-          setCaptchaMessage(`La vérification Cloudflare est indisponible sur ce domaine (${code}). Connecte-toi depuis WikiMasters.`, true);
-        },
-      });
-    } catch {
-      setCaptchaMessage("Impossible de charger la vérification anti-robot. Réessaie plus tard.", true);
-    }
-  }
-
-  function loadTurnstile() {
-    if (window.turnstile) {
-      renderTurnstile();
-      return;
-    }
-    if (captchaScriptRequested) return;
-    captchaScriptRequested = true;
-    window.wmCotesTurnstileLoaded = renderTurnstile;
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=wmCotesTurnstileLoaded&render=explicit";
-    script.async = true;
-    script.onerror = () => setCaptchaMessage("Cloudflare Turnstile n’a pas pu se charger. Vérifie ta connexion puis réessaie.", true);
-    document.head.append(script);
-  }
-
-  function resetTurnstile() {
-    captchaToken = "";
-    if (captchaWidgetId !== null && window.turnstile) {
-      try { window.turnstile.reset(captchaWidgetId); } catch { /* Le widget sera recréé à la prochaine ouverture. */ }
-    }
-  }
-
-  loginButton.addEventListener("click", () => {
-    loginDialog.showModal();
-    loadTurnstile();
-  });
-  $("#closeLogin").addEventListener("click", () => loginDialog.close());
-  togglePassword.addEventListener("click", () => {
-    const show = loginPassword.type === "password";
-    loginPassword.type = show ? "text" : "password";
-    togglePassword.textContent = show ? "Masquer" : "Afficher";
-    togglePassword.setAttribute("aria-pressed", String(show));
-  });
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!captchaToken) {
-      message(loginMessage, "Complète la vérification anti-robot avant de te connecter.", true);
-      return;
-    }
-    submitLogin.disabled = true;
-    submitLogin.textContent = "Connexion…";
-    loginMessage.hidden = true;
-    try {
-      const payload = await requestAuthToken("password", {
-        email: $("#loginEmail").value.trim(),
-        password: $("#loginPassword").value,
-      }, captchaToken);
-      acceptSession(payload);
-      loginForm.reset();
-      loginPassword.type = "password";
-      togglePassword.textContent = "Afficher";
-      togglePassword.setAttribute("aria-pressed", "false");
-      loginDialog.close();
-      if (selectedCard && raritySelect.value) loadCardData();
-    } catch (error) {
-      message(loginMessage, error.message || "La connexion a échoué.", true);
-    } finally {
-      resetTurnstile();
-      submitLogin.disabled = false;
-      submitLogin.textContent = "Se connecter";
-    }
-  });
-
-  logoutButton.addEventListener("click", async () => {
-    const token = authSession?.accessToken;
-    if (token) {
-      try {
-        const key = window.WM_CONFIG?.anonKey;
-        await fetch(`${AUTH}/logout`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${token}` } });
-      } catch { /* La session locale est effacée même si le serveur est inaccessible. */ }
-    }
-    clearSession();
-    if (selectedCard && raritySelect.value) message(chartMessage, "Connectez-vous à WikiMasters pour consulter les ventes.");
-  });
 
   async function findCards(query) {
     const normalized = query.trim().toLocaleLowerCase("fr-FR");
@@ -297,21 +76,26 @@
       return;
     }
     for (const card of cards) {
+      const rarityCode = RARITIES.includes(card.rarity) ? card.rarity : "C";
       const button = document.createElement("button");
       button.className = "search-result";
       button.type = "button";
       button.setAttribute("role", "option");
+      button.dataset.rarity = rarityCode;
+      button.style.setProperty("--rarity", RARITY_COLORS[rarityCode]);
+
       const icon = document.createElement("span");
       icon.className = "result-symbol";
+      icon.setAttribute("aria-hidden", "true");
       icon.textContent = "✳";
       const title = document.createElement("span");
       title.className = "result-title";
       title.textContent = card.wikipedia_title;
       const rarity = document.createElement("span");
       rarity.className = "result-rarity";
-      rarity.textContent = card.rarity || "—";
+      rarity.textContent = rarityCode;
       button.append(icon, title, rarity);
-      button.addEventListener("click", () => selectCard(card));
+      button.addEventListener("click", () => selectCard({ ...card, rarity: rarityCode }));
       results.append(button);
     }
   }
@@ -324,7 +108,7 @@
     workspace.hidden = true;
     selectedCard = null;
     if (query.length < 2) {
-      message(searchHelp, "Saisissez au moins 2 caractères");
+      message(searchHelp, "Saisis au moins 2 caractères");
       return;
     }
     message(searchHelp, "Recherche en cours…");
@@ -342,29 +126,36 @@
 
   function selectCard(card) {
     selectedCard = card;
+    const rarity = RARITIES.includes(card.rarity) ? card.rarity : "C";
+    const accent = RARITY_COLORS[rarity];
     $("#selectedName").textContent = card.wikipedia_title;
+    $("#selectedCard").style.setProperty("--rarity", accent);
+    $("#selectedRarity").textContent = rarity;
     raritySelect.replaceChildren();
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Choisir la rareté";
-    raritySelect.append(placeholder);
-    for (const rarity of RARITIES) {
+    for (const rarityOption of RARITIES) {
       const option = document.createElement("option");
-      option.value = rarity;
-      option.textContent = rarity;
+      option.value = rarityOption;
+      option.textContent = rarityOption;
       raritySelect.append(option);
     }
-    raritySelect.value = RARITIES.includes(card.rarity) ? card.rarity : "";
+    raritySelect.value = rarity;
+    raritySelect.style.setProperty("--rarity", accent);
     summary.replaceChildren();
     chartContainer.replaceChildren();
     chartContainer.hidden = true;
-    message(chartMessage, "Choisissez une rareté pour charger l’historique.");
+    message(chartMessage, "Chargement de l’historique…");
     workspace.hidden = false;
-    if (raritySelect.value) loadCardData();
+    loadCardData();
     workspace.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  raritySelect.addEventListener("change", loadCardData);
+  raritySelect.addEventListener("change", () => {
+    const accent = RARITY_COLORS[raritySelect.value] || RARITY_COLORS.C;
+    raritySelect.style.setProperty("--rarity", accent);
+    $("#selectedCard").style.setProperty("--rarity", accent);
+    $("#selectedRarity").textContent = raritySelect.value;
+    loadCardData();
+  });
 
   function metric(label, value) {
     const tile = document.createElement("div");
@@ -421,6 +212,9 @@
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", `Évolution hebdomadaire du prix moyen, ${sales.length} ventes`);
+    const defs = document.createElementNS(svg.namespaceURI, "defs");
+    defs.innerHTML = '<linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#73e2c0" stop-opacity=".2"/><stop offset="100%" stop-color="#73e2c0" stop-opacity="0"/></linearGradient>';
+    svg.append(defs);
     const add = (tag, attrs, parent = svg) => {
       const element = document.createElementNS(svg.namespaceURI, tag);
       for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, String(value));
@@ -460,13 +254,6 @@
     chartContainer.hidden = true;
     message(chartMessage, "Chargement des ventes…");
     try {
-      await restoreSessionPromise;
-      let accessToken = await getAccessToken();
-      if (!accessToken) {
-        message(chartMessage, "Connectez-vous à WikiMasters pour consulter les ventes.");
-        if (!loginDialog.open) loginDialog.showModal();
-        return;
-      }
       const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const params = new URLSearchParams({
         select: "end_at,current_bid",
@@ -477,36 +264,23 @@
         order: "end_at.asc",
         limit: "1000",
       });
-      let rows;
-      try {
-        rows = await request(`auctions?${params}`, accessToken);
-      } catch (error) {
-        if (error.status !== 401 || error.code === "42501") throw error;
-        accessToken = await refreshSession();
-        if (!accessToken) throw error;
-        rows = await request(`auctions?${params}`, accessToken);
-      }
+      const rows = await request(`auctions?${params}`);
       if (sequence !== dataSequence) return;
       const sales = rows.filter((sale) => Number.isFinite(Number(sale.current_bid)) && Number(sale.current_bid) > 0 && Number.isFinite(new Date(sale.end_at).getTime()));
       renderSummary(sales);
       renderChart(sales);
     } catch (error) {
-      if (error.sessionExpired || (error.status === 401 && error.code !== "42501")) {
-        clearSession();
-        if (sequence === dataSequence) {
-          message(chartMessage, "Votre session WikiMasters a expiré. Reconnectez-vous pour afficher les ventes.", true);
-          if (!loginDialog.open) loginDialog.showModal();
-        }
-      } else if (sequence === dataSequence) {
-        const text = error.code === "42501"
-          ? "WikiMasters refuse l’accès à l’historique pour cette session."
-          : error.message || "Impossible de charger les données.";
-        message(chartMessage, text, true);
+      if (sequence !== dataSequence) return;
+      if (error.status === 401 && error.code === "42501") {
+        message(chartMessage, "Les enchères demandent une session WikiMasters, mais leur API ne permet pas à GitHub Pages de la vérifier ou de la partager. Le propriétaire de WikiMasters doit autoriser cet accès inter-site.", true);
+      } else {
+        message(chartMessage, error.message || "Impossible de charger les données.", true);
       }
     }
   }
 
-  restoreSessionPromise = restoreSession();
+  $("#connectionText").textContent = "Catalogue public";
+  $(".searchbox kbd").textContent = "Ctrl K";
   search.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
