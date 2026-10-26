@@ -102,3 +102,34 @@
 .wm-cotes-chart-dot { fill: #a1f4d7; stroke: #0b1516; stroke-width: 1.5; }
 .wm-cotes-chart-label { fill: #9bb2ac; font: 8px system-ui, sans-serif; }
 .wm-cotes-chart-value { fill: #e4fff5; font: 9px system-ui, sans-serif; font-weight: 700; paint-order: stroke; stroke: #0c1817; stroke-width: 3px; stroke-linejoin: round; }
+
+@media (max-width: 600px) {
+  .wm-cotes-status {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    min-height: 42px;
+    padding: 10px 13px;
+    font-size: 12px;
+  }
+
+  .wm-cotes-panel {
+    right: 8px;
+    bottom: calc(62px + env(safe-area-inset-bottom));
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 78px - env(safe-area-inset-bottom));
+    gap: 10px;
+    padding: 13px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .wm-cotes-panel input,
+  .wm-cotes-panel select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .wm-cotes-results { max-height: min(190px, 28dvh); }
+  .wm-cotes-result { min-height: 42px; padding: 10px; }
+  .wm-cotes-close { min-width: 42px; min-height: 42px; }
+}

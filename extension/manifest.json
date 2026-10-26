@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "WikiMasters — Cotes",
+  "version": "1.1.0",
+  "description": "Affiche les cotes et l’historique des enchères WikiMasters, y compris sur Firefox Android.",
+  "host_permissions": ["https://cyrxjeppjqsxxjayfrur.supabase.co/*"],
+  "background": {
+    "scripts": ["background.js"],
+    "service_worker": "background.js"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "wikimasters-cotes@sfire2.github.io",
+      "strict_min_version": "121.0"
+    },
+    "gecko_android": {
+      "strict_min_version": "128.0"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.wiki-masters.com/*", "https://wiki-masters.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

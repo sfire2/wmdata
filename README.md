@@ -1,6 +1,21 @@
 # WikiMasters · Cotes
 
-Application de cotes WikiMasters, disponible sur GitHub Pages et en application de bureau.
+Extension et application de cotes non officielles pour WikiMasters.
+
+## Extension Firefox Android
+
+Les fichiers de l’extension sont dans `extension/`. Elle ajoute le panneau des cotes directement sur WikiMasters et interroge l’historique avec la session déjà ouverte dans Firefox. Le manifeste prend en charge le service worker de Chrome et le script d’arrière-plan utilisé par Firefox.
+
+Vérifier le manifeste et créer le paquet destiné à AMO :
+
+```bash
+npm install
+npm run extension:package
+```
+
+Le paquet `.xpi` est créé dans `artifacts/firefox-android/`. Pour l’installer dans Firefox Android stable, il faut le soumettre à [addons.mozilla.org](https://addons.mozilla.org/developers/) pour signature, puis l’installer depuis sa fiche AMO. Firefox Android n’installe pas directement une extension non signée depuis le dépôt GitHub.
+
+Sur Chrome de bureau, charger `extension/` depuis `chrome://extensions` avec le mode développeur activé. Chrome Android ne prend pas en charge les extensions classiques.
 
 ## Accès aux enchères
 
@@ -43,4 +58,4 @@ Ouvre ensuite <http://localhost:4173>. La compilation récupère la clé publiqu
 
 Le workflow `.github/workflows/pages.yml` publie le site à chaque push sur `main`. La source de déploiement du dépôt doit être réglée sur **Settings → Pages → GitHub Actions**.
 
-L’application est communautaire et non officielle. Les anciennes sources de l’extension Chrome restent dans `legacy-extension/`.
+L’extension garde les prix et la session dans le navigateur. Elle transmet le jeton de session à Supabase pour les requêtes d’historique, sans l’envoyer à GitHub Pages.

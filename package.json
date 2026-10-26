@@ -9,7 +9,8 @@
     "start": "python -m http.server 4173",
     "build": "node scripts/fetch-wm-key.mjs",
     "desktop": "electron .",
-    "companion": "electron . --companion"
+    "companion": "electron . --companion",
+    "extension:package": "node scripts/package-firefox-addon.mjs"
   },
   "devDependencies": {
     "electron": "^44.9.3"

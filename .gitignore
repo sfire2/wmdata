@@ -1,4 +1,5 @@
 wm-config.js
 _site/
 node_modules/
+artifacts/
 *.log
