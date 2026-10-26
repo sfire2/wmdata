@@ -7,7 +7,7 @@
     SR: "#c084fc",
     UR: "#fbbf24",
     PC: "#fb7185",
-    L: "#34d399",
+    L: "#facc15",
   };
   const $ = (selector) => document.querySelector(selector);
   const search = $("#cardSearch");
