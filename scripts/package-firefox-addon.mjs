@@ -5,7 +5,7 @@ import { deflateRawSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = resolve(root, "extension");
-const outputDir = resolve(root, "artifacts", "firefox-android");
+const outputDir = resolve(root, "artifacts", "firefox");
 const outputFile = resolve(outputDir, "wikimasters-cotes.xpi");
 const files = ["manifest.json", "background.js", "content.js", "styles.css"];
 const crcTable = new Uint32Array(256);
@@ -95,4 +95,4 @@ end.writeUInt16LE(0, 20);
 
 await mkdir(outputDir, { recursive: true });
 await writeFile(outputFile, Buffer.concat([...localParts, centralDirectory, end]));
-console.log(`Paquet Firefox créé : ${outputFile}`);
+console.log(`Paquet Firefox pour ordinateur créé : ${outputFile}`);

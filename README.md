@@ -2,20 +2,22 @@
 
 Extension et application de cotes non officielles pour WikiMasters.
 
-## Extension Firefox Android
+## Extension Firefox pour ordinateur
 
-Les fichiers de l’extension sont dans `extension/`. Elle ajoute le panneau des cotes directement sur WikiMasters et interroge l’historique avec la session déjà ouverte dans Firefox. Le manifeste prend en charge le service worker de Chrome et le script d’arrière-plan utilisé par Firefox.
+Les fichiers de l’extension sont dans `extension/`. Elle ajoute le panneau des cotes directement sur WikiMasters et interroge l’historique avec la session déjà ouverte dans Firefox.
 
-Vérifier le manifeste et créer le paquet destiné à AMO :
+Pour l’essayer sans publication, ouvre `about:debugging#/runtime/this-firefox` dans Firefox, clique sur **Charger un module temporaire…** et sélectionne `extension/manifest.json`. Recharge ensuite WikiMasters. Le panneau **Cotes** apparaît en bas à droite. Le chargement temporaire prend fin quand Firefox se ferme.
+
+Créer le paquet destiné à une installation persistante :
 
 ```bash
 npm install
 npm run extension:package
 ```
 
-Le paquet `.xpi` est créé dans `artifacts/firefox-android/`. Pour l’installer dans Firefox Android stable, il faut le soumettre à [addons.mozilla.org](https://addons.mozilla.org/developers/) pour signature, puis l’installer depuis sa fiche AMO. Firefox Android n’installe pas directement une extension non signée depuis le dépôt GitHub.
+Le paquet `.xpi` est créé dans `artifacts/firefox/`. Une installation permanente dans Firefox standard nécessite une signature Mozilla via [AMO](https://addons.mozilla.org/developers/).
 
-Sur Chrome de bureau, charger `extension/` depuis `chrome://extensions` avec le mode développeur activé. Chrome Android ne prend pas en charge les extensions classiques.
+Le manifeste conserve aussi le fallback nécessaire à Chrome de bureau. Chrome Android n’est pas pris en charge.
 
 ## Accès aux enchères
 
