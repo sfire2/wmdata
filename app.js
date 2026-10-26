@@ -1,5 +1,7 @@
 (() => {
   const API = "https://cyrxjeppjqsxxjayfrur.supabase.co/rest/v1";
+  const AUTH = "https://cyrxjeppjqsxxjayfrur.supabase.co/auth/v1";
+  const SESSION_KEY = "wm-cotes-refresh-token";
   const RARITIES = ["C", "R", "SR", "UR", "PC", "L"];
   const $ = (selector) => document.querySelector(selector);
   const search = $("#cardSearch");
@@ -12,11 +14,19 @@
   const chartContainer = $("#chartContainer");
   const connection = $("#connection");
   const connectionText = $("#connectionText");
+  const loginButton = $("#loginButton");
+  const logoutButton = $("#logoutButton");
+  const loginDialog = $("#loginDialog");
+  const loginForm = $("#loginForm");
+  const loginMessage = $("#loginMessage");
+  const submitLogin = $("#submitLogin");
   const cache = new Map();
   let selectedCard = null;
   let searchTimer;
   let searchSequence = 0;
   let dataSequence = 0;
+  let authSession = null;
+  let restoreSessionPromise;
 
   const price = (value) => `${Math.round(value).toLocaleString("fr-FR")} WB`;
 
@@ -26,16 +36,141 @@
     node.classList.toggle("is-error", isError);
   }
 
-  function request(path) {
+  function request(path, accessToken) {
     const key = window.WM_CONFIG?.anonKey;
     if (!key) throw new Error("Configuration du catalogue introuvable. Rechargez la page plus tard.");
     return fetch(`${API}/${path}`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      headers: { apikey: key, Authorization: `Bearer ${accessToken || key}` },
     }).then(async (response) => {
-      if (!response.ok) throw new Error(`Catalogue indisponible (HTTP ${response.status}).`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const error = new Error(payload.message || `Catalogue indisponible (HTTP ${response.status}).`);
+        error.status = response.status;
+        error.code = payload.code;
+        throw error;
+      }
       return response.json();
     });
   }
+
+  function updateConnection() {
+    const connected = Boolean(authSession?.refreshToken && authSession?.accessToken);
+    connection.classList.toggle("is-connected", connected);
+    connectionText.textContent = connected ? "Session WikiMasters active" : "Session WikiMasters requise";
+    loginButton.hidden = connected;
+    logoutButton.hidden = !connected;
+  }
+
+  function saveRefreshToken(refreshToken) {
+    authSession = { ...authSession, refreshToken };
+    try { localStorage.setItem(SESSION_KEY, refreshToken); } catch { /* Le jeton reste en mémoire jusqu'à la fermeture. */ }
+  }
+
+  function clearSession() {
+    authSession = null;
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* stockage indisponible */ }
+    updateConnection();
+  }
+
+  async function requestAuthToken(grant, body) {
+    const key = window.WM_CONFIG?.anonKey;
+    if (!key) throw new Error("Configuration du catalogue introuvable. Rechargez la page plus tard.");
+    const response = await fetch(`${AUTH}/token?grant_type=${grant}`, {
+      method: "POST",
+      headers: { apikey: key, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(response.status === 400 || response.status === 401
+        ? "Identifiants incorrects ou session WikiMasters indisponible."
+        : `Connexion indisponible (HTTP ${response.status}).`);
+      error.status = response.status;
+      error.sessionExpired = grant === "refresh_token" && (response.status === 400 || response.status === 401);
+      throw error;
+    }
+    return payload;
+  }
+
+  function acceptSession(payload) {
+    if (!payload.access_token || !payload.refresh_token) throw new Error("WikiMasters n’a pas renvoyé de session valide.");
+    authSession = {
+      accessToken: payload.access_token,
+      refreshToken: payload.refresh_token,
+      expiresAt: Date.now() + Number(payload.expires_in || 3600) * 1000,
+    };
+    saveRefreshToken(payload.refresh_token);
+    updateConnection();
+  }
+
+  async function refreshSession() {
+    if (!authSession?.refreshToken) return null;
+    const payload = await requestAuthToken("refresh_token", { refresh_token: authSession.refreshToken });
+    acceptSession(payload);
+    return authSession.accessToken;
+  }
+
+  async function getAccessToken() {
+    if (!authSession?.refreshToken) return null;
+    if (!authSession.accessToken || authSession.expiresAt < Date.now() + 60_000) return refreshSession();
+    return authSession.accessToken;
+  }
+
+  async function restoreSession() {
+    connectionText.textContent = "Vérification de la session…";
+    let refreshToken = "";
+    try { refreshToken = localStorage.getItem(SESSION_KEY) || ""; } catch { /* stockage indisponible */ }
+    if (!refreshToken) {
+      updateConnection();
+      return;
+    }
+    authSession = { refreshToken };
+    try {
+      await refreshSession();
+    } catch (error) {
+      if (error.status === 400 || error.status === 401) clearSession();
+      else {
+        updateConnection();
+        connectionText.textContent = "Session à vérifier";
+      }
+    }
+  }
+
+  loginButton.addEventListener("click", () => loginDialog.showModal());
+  $("#closeLogin").addEventListener("click", () => loginDialog.close());
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    submitLogin.disabled = true;
+    submitLogin.textContent = "Connexion…";
+    loginMessage.hidden = true;
+    try {
+      const payload = await requestAuthToken("password", {
+        email: $("#loginEmail").value.trim(),
+        password: $("#loginPassword").value,
+      });
+      acceptSession(payload);
+      loginForm.reset();
+      loginDialog.close();
+      if (selectedCard && raritySelect.value) loadCardData();
+    } catch (error) {
+      message(loginMessage, error.message || "La connexion a échoué.", true);
+    } finally {
+      submitLogin.disabled = false;
+      submitLogin.textContent = "Se connecter";
+    }
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    const token = authSession?.accessToken;
+    if (token) {
+      try {
+        const key = window.WM_CONFIG?.anonKey;
+        await fetch(`${AUTH}/logout`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${token}` } });
+      } catch { /* La session locale est effacée même si le serveur est inaccessible. */ }
+    }
+    clearSession();
+    if (selectedCard && raritySelect.value) message(chartMessage, "Connectez-vous à WikiMasters pour consulter les ventes.");
+  });
 
   async function findCards(query) {
     const normalized = query.trim().toLocaleLowerCase("fr-FR");
@@ -227,6 +362,13 @@
     chartContainer.hidden = true;
     message(chartMessage, "Chargement des ventes…");
     try {
+      await restoreSessionPromise;
+      let accessToken = await getAccessToken();
+      if (!accessToken) {
+        message(chartMessage, "Connectez-vous à WikiMasters pour consulter les ventes.");
+        if (!loginDialog.open) loginDialog.showModal();
+        return;
+      }
       const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       const params = new URLSearchParams({
         select: "end_at,current_bid",
@@ -237,18 +379,36 @@
         order: "end_at.asc",
         limit: "1000",
       });
-      const rows = await request(`auctions?${params}`);
+      let rows;
+      try {
+        rows = await request(`auctions?${params}`, accessToken);
+      } catch (error) {
+        if (error.status !== 401 || error.code === "42501") throw error;
+        accessToken = await refreshSession();
+        if (!accessToken) throw error;
+        rows = await request(`auctions?${params}`, accessToken);
+      }
       if (sequence !== dataSequence) return;
       const sales = rows.filter((sale) => Number.isFinite(Number(sale.current_bid)) && Number(sale.current_bid) > 0 && Number.isFinite(new Date(sale.end_at).getTime()));
       renderSummary(sales);
       renderChart(sales);
     } catch (error) {
-      if (sequence === dataSequence) message(chartMessage, error.message || "Impossible de charger les données.", true);
+      if (error.sessionExpired || (error.status === 401 && error.code !== "42501")) {
+        clearSession();
+        if (sequence === dataSequence) {
+          message(chartMessage, "Votre session WikiMasters a expiré. Reconnectez-vous pour afficher les ventes.", true);
+          if (!loginDialog.open) loginDialog.showModal();
+        }
+      } else if (sequence === dataSequence) {
+        const text = error.code === "42501"
+          ? "WikiMasters refuse l’accès à l’historique pour cette session."
+          : error.message || "Impossible de charger les données.";
+        message(chartMessage, text, true);
+      }
     }
   }
 
-  connectionText.textContent = "Catalogue public";
-  connection.classList.add("is-connected");
+  restoreSessionPromise = restoreSession();
   search.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();

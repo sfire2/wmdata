@@ -16,6 +16,8 @@
       <div class="connection" id="connection">
         <span class="connection-dot"></span>
         <span id="connectionText">Vérification de la connexion…</span>
+        <button class="text-button" id="loginButton" type="button">Se connecter</button>
+        <button class="text-button" id="logoutButton" type="button" hidden>Se déconnecter</button>
       </div>
     </header>
 
@@ -54,6 +56,20 @@
 
     <footer><span>WIKIMASTERS · COTES</span><span>Application communautaire non officielle</span></footer>
   </main>
+  <dialog class="login-dialog" id="loginDialog" aria-labelledby="loginTitle">
+    <form id="loginForm">
+      <div class="dialog-heading"><div><span class="section-kicker">SESSION WIKIMASTERS</span><h2 id="loginTitle">Se connecter</h2></div><button class="dialog-close" id="closeLogin" type="button" aria-label="Fermer">×</button></div>
+      <p>Connectez-vous pour consulter les ventes conclues et leur historique.</p>
+      <label for="loginEmail">Adresse courriel</label>
+      <input id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginPassword">Mot de passe</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <div class="login-message" id="loginMessage" aria-live="polite" hidden></div>
+      <button class="text-button login-submit" id="submitLogin" type="submit">Se connecter</button>
+      <a class="login-site-link" href="https://www.wiki-masters.com/login" target="_blank" rel="noreferrer">Créer un compte ou réinitialiser le mot de passe sur WikiMasters</a>
+      <small>Vos identifiants sont envoyés directement au service d’authentification WikiMasters. L’application ne les enregistre pas.</small>
+    </form>
+  </dialog>
   <script src="wm-config.js"></script>
   <script src="app.js"></script>
 </body>

@@ -4,7 +4,9 @@ Application web statique pour rechercher une carte WikiMasters et consulter les 
 
 ## Utiliser l'application
 
-Le site publié est utilisable depuis un navigateur récent. Il n'y a rien à installer et aucune connexion WikiMasters n'est requise : l'application lit le catalogue public et les ventes publiques.
+Le site publié est utilisable depuis un navigateur récent. Il n'y a rien à installer. Le catalogue des cartes est public ; un compte WikiMasters est requis pour consulter les enchères, que l'API réserve aux utilisateurs connectés.
+
+Cliquez sur **Se connecter** et utilisez votre adresse courriel et votre mot de passe WikiMasters. Le navigateur envoie ces identifiants directement au service d'authentification Supabase utilisé par WikiMasters ; ils ne sont ni envoyés à GitHub Pages ni enregistrés par l'application. Le jeton de renouvellement de session est conservé localement dans le navigateur afin d'éviter de se reconnecter à chaque visite. **Se déconnecter** révoque la session et efface ce jeton local.
 
 Pour lancer le site en local, avec Python installé :
 
@@ -21,6 +23,6 @@ Le workflow `.github/workflows/pages.yml` prépare automatiquement le site à ch
 
 Le workflow récupère la clé publique du catalogue depuis les scripts publiquement servis par WikiMasters. Cette clé est conçue pour être utilisée dans les clients publics ; aucun mot de passe ni jeton de session n'est intégré au site.
 
-Les pages et données appartiennent à WikiMasters. L'application est communautaire et non officielle. Les routes publiques peuvent évoluer ou refuser les requêtes depuis GitHub Pages ; dans ce cas, l'interface signale l'erreur retournée par le catalogue.
+Les pages et données appartiennent à WikiMasters. L'application est communautaire et non officielle. Ses appels utilisent l'API publique de WikiMasters et un jeton de session pour les enchères ; ces routes peuvent évoluer. En cas d'erreur, l'interface l'indique.
 
 Les anciens fichiers de l'extension Chrome restent dans `legacy-extension/`. Le lanceur Electron précédent est archivé dans `legacy-desktop/` et n'est plus utilisé par le site statique.
