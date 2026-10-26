@@ -1,0 +1,11 @@
+{
+  "name": "wikimasters-cotes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Application web statique pour consulter les cotes WikiMasters, déployable sur GitHub Pages.",
+  "type": "module",
+  "scripts": {
+    "start": "python -m http.server 4173",
+    "build": "node scripts/fetch-wm-key.mjs"
+  }
+}

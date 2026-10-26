@@ -1,0 +1,4 @@
+wm-config.js
+_site/
+node_modules/
+*.log

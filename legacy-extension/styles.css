@@ -1,0 +1,104 @@
+.wm-cotes-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 6px 0 2px;
+  padding: 5px 9px;
+  border: 1px solid rgba(77, 225, 181, .34);
+  border-radius: 999px;
+  background: rgba(9, 35, 31, .92);
+  color: #a1f4d7;
+  font: 700 11px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .01em;
+  cursor: help;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, .16);
+}
+
+.wm-cotes-badge:hover {
+  border-color: rgba(77, 225, 181, .72);
+  background: #102f29;
+}
+
+.wm-cotes-status {
+  appearance: none;
+  position: fixed;
+  z-index: 2147483646;
+  right: 14px;
+  bottom: 14px;
+  padding: 7px 11px;
+  border: 1px solid rgba(77, 225, 181, .38);
+  border-radius: 999px;
+  background: #09231f;
+  color: #a1f4d7;
+  font: 600 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .25);
+  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.wm-cotes-status::after {
+  content: " · " attr(data-count) " carte(s)";
+  color: #d3fbed;
+}
+
+.wm-cotes-panel {
+  position: fixed;
+  z-index: 2147483647;
+  right: 14px;
+  bottom: 56px;
+  display: flex;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 90px));
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(77, 225, 181, .35);
+  border-radius: 16px;
+  background: #0b1516;
+  color: #effaf7;
+  font: 13px/1.45 system-ui, sans-serif;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .48);
+}
+
+.wm-cotes-panel[hidden] { display: none; }
+.wm-cotes-panel header { display: flex; align-items: center; justify-content: space-between; font-size: 16px; }
+.wm-cotes-panel input,
+.wm-cotes-panel select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #314846;
+  border-radius: 9px;
+  outline: none;
+  background: #101f20;
+  color: #effaf7;
+  font: inherit;
+}
+.wm-cotes-panel input:focus,
+.wm-cotes-panel select:focus { border-color: #4de1b5; }
+.wm-cotes-close { border: 0; background: transparent; color: #b7ccc7; font-size: 24px; cursor: pointer; }
+.wm-cotes-results { display: grid; gap: 5px; max-height: 200px; overflow: auto; }
+.wm-cotes-result { padding: 9px 10px; border: 1px solid transparent; border-radius: 8px; background: #112322; color: #dff5ee; text-align: left; font: inherit; cursor: pointer; }
+.wm-cotes-result:hover,
+.wm-cotes-result.is-selected { border-color: #3e9f82; background: #17332d; }
+.wm-cotes-muted { margin: 0; color: #9bb2ac; font-size: 12px; }
+.wm-cotes-rarity-label { display: grid; gap: 6px; color: #9bb2ac; font-size: 11px; }
+.wm-cotes-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.wm-cotes-metric { display: grid; gap: 3px; padding: 10px; border: 1px solid #213a36; border-radius: 9px; background: #10201d; }
+.wm-cotes-metric span { color: #9bb2ac; font-size: 10px; }
+.wm-cotes-metric strong { color: #a1f4d7; font-size: 15px; }
+.wm-cotes-history-title { margin: 3px 0 0; font-size: 12px; }
+.wm-cotes-history { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.wm-cotes-history li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #203330; }
+.wm-cotes-history li strong { color: #a1f4d7; }
+.wm-cotes-history time { color: #9bb2ac; font-size: 11px; }
+.wm-cotes-chart-section { display: grid; gap: 5px; }
+.wm-cotes-chart-section > strong { font-size: 12px; }
+.wm-cotes-chart { display: block; width: 100%; overflow: visible; border-radius: 10px; background: linear-gradient(180deg, #10201d, #0c1817); }
+.wm-cotes-chart-grid { stroke: #29413c; stroke-width: 1; stroke-dasharray: 3 4; }
+.wm-cotes-chart-line { stroke: #4de1b5; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.wm-cotes-chart-dot { fill: #a1f4d7; stroke: #0b1516; stroke-width: 1.5; }
+.wm-cotes-chart-label { fill: #9bb2ac; font: 8px system-ui, sans-serif; }
+.wm-cotes-chart-value { fill: #e4fff5; font: 9px system-ui, sans-serif; font-weight: 700; paint-order: stroke; stroke: #0c1817; stroke-width: 3px; stroke-linejoin: round; }

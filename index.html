@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WikiMasters · Cotes</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="WikiMasters Cotes, accueil">
+        <span class="brand-mark">W</span>
+        <span><strong>WikiMasters</strong><small>Observatoire des cotes</small></span>
+      </a>
+      <div class="connection" id="connection">
+        <span class="connection-dot"></span>
+        <span id="connectionText">Vérification de la connexion…</span>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow"><span></span> MARCHÉ DES CARTES</div>
+      <h1>Suivez la valeur<br><em>de vos cartes.</em></h1>
+      <p>Recherchez une carte et visualisez l’évolution hebdomadaire de ses enchères conclues.</p>
+      <label class="searchbox" for="cardSearch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.2 4.2"></path></svg>
+        <input id="cardSearch" type="search" placeholder="Nom de la carte…" autocomplete="off" spellcheck="false">
+        <kbd>⌕</kbd>
+      </label>
+      <div class="search-help" id="searchHelp">Saisissez au moins 2 caractères</div>
+      <div class="search-results" id="searchResults" role="listbox" aria-label="Résultats de recherche"></div>
+    </section>
+
+    <section class="workspace" id="workspace" hidden>
+      <div class="selected-card">
+        <div class="card-icon">✳</div>
+        <div class="card-copy"><span>CARTE SÉLECTIONNÉE</span><h2 id="selectedName"></h2></div>
+        <label class="rarity-control" for="raritySelect"><span>RARETÉ</span><select id="raritySelect" aria-label="Choisir la rareté"></select></label>
+      </div>
+
+      <div class="summary-grid" id="summary"></div>
+
+      <section class="chart-card">
+        <div class="chart-heading">
+          <div><span class="section-kicker">HISTORIQUE DU MARCHÉ</span><h2>Évolution des prix</h2></div>
+          <span class="period-pill"><span></span> 90 derniers jours</span>
+        </div>
+        <div id="chartMessage" class="chart-message">Choisissez une rareté pour charger l’historique.</div>
+        <div id="chartContainer" class="chart-container" hidden></div>
+      </section>
+      <p class="footnote">Les prix sont calculés à partir des enchères vendues accessibles avec votre session WikiMasters. Les moyennes sont regroupées par semaine.</p>
+    </section>
+
+    <footer><span>WIKIMASTERS · COTES</span><span>Application communautaire non officielle</span></footer>
+  </main>
+  <script src="wm-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
